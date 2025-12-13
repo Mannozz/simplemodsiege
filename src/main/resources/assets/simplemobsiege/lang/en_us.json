@@ -1,5 +1,21 @@
 {
-  "itemGroup.simplemobsiege": "Example Mod Tab",
-  "block.simplemobsiege.example_block": "Example Block",
-  "item.simplemobsiege.example_item": "Example Item"
+  "itemGroup.simplemobsiege": "Simple Mob Siege",
+  "block.simplemobsiege.siege_block": "Siege Block",
+  "block.simplemobsiege.spawn_point": "Spawn Point",
+  "item.simplemobsiege.mob_card": "Mob Card",
+  "item.simplemobsiege.challenge_card": "Challenge Card",
+  "item.simplemobsiege.blank_card": "Blank Card",
+  "tooltip.simplemobsiege.mob_card": "Mob: %s",
+  "tooltip.simplemobsiege.mob_card.empty": "Empty",
+  "event.simplemobsiege.siege": "Mob Siege",
+  "event.simplemobsiege.siege.wave": "Wave %s - Remaining: %s",
+  "event.simplemobsiege.siege.victory": "Siege Victory!",
+  "event.simplemobsiege.siege.failed": "Siege Failed!",
+  "message.simplemobsiege.no_waves": "No waves configured!",
+  "message.simplemobsiege.no_spawn_points": "No spawn points linked!",
+  "message.simplemobsiege.siege_selected": "Siege Block selected at %s",
+  "message.simplemobsiege.linked": "Spawn Point linked to Siege Block at %s",
+  "message.simplemobsiege.link_failed": "Link failed: Siege Block not found.",
+  "message.simplemobsiege.no_selection": "No Siege Block selected. Shift-Right-Click a Siege Block first.",
+  "gui.simplemobsiege.start": "Start"
 }

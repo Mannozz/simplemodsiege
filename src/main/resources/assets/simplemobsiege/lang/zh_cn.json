@@ -1,0 +1,21 @@
+{
+  "itemGroup.simplemobsiege": "怪物攻城",
+  "block.simplemobsiege.siege_block": "攻城方块",
+  "block.simplemobsiege.spawn_point": "怪物生成点",
+  "item.simplemobsiege.mob_card": "怪物卡牌",
+  "item.simplemobsiege.challenge_card": "挑战卡牌",
+  "item.simplemobsiege.blank_card": "空白卡牌",
+  "tooltip.simplemobsiege.mob_card": "怪物: %s",
+  "tooltip.simplemobsiege.mob_card.empty": "空",
+  "event.simplemobsiege.siege": "怪物攻城",
+  "event.simplemobsiege.siege.wave": "第 %s 波 - 剩余: %s",
+  "event.simplemobsiege.siege.victory": "攻城胜利！",
+  "event.simplemobsiege.siege.failed": "攻城失败！",
+  "message.simplemobsiege.no_waves": "未配置波次！",
+  "message.simplemobsiege.no_spawn_points": "未连接怪物生成点！",
+  "message.simplemobsiege.siege_selected": "已选择攻城方块位于 %s",
+  "message.simplemobsiege.linked": "生成点已连接至位于 %s 的攻城方块",
+  "message.simplemobsiege.link_failed": "连接失败：未找到攻城方块。",
+  "message.simplemobsiege.no_selection": "未选择攻城方块。请先按住Shift右键点击攻城方块。",
+  "gui.simplemobsiege.start": "开始"
+}
