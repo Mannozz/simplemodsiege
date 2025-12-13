@@ -321,11 +321,7 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         tag.put("Inventory", itemHandler.serializeNBT(registries));
         tag.putString("State", state.name());
         
-        ListTag spawnPointsList = new ListTag();
-        for (BlockPos pos : spawnPoints) {
-            spawnPointsList.add(LongTag.valueOf(pos.asLong()));
-        }
-        tag.put("SpawnPoints", spawnPointsList);
+        tag.putLongArray("SpawnPoints", spawnPoints.stream().mapToLong(BlockPos::asLong).toArray());
         
         tag.putInt("CurrentWave", currentWave);
         tag.putFloat("Durability", durability);
@@ -345,9 +341,9 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         
         if (tag.contains("SpawnPoints")) {
             spawnPoints.clear();
-            ListTag list = tag.getList("SpawnPoints", Tag.TAG_LONG);
-            for (Tag t : list) {
-                spawnPoints.add(BlockPos.of(((LongTag) t).getAsLong()));
+            long[] points = tag.getLongArray("SpawnPoints");
+            for (long p : points) {
+                spawnPoints.add(BlockPos.of(p));
             }
         }
 
