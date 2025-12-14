@@ -6,6 +6,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
+import net.manno.simplemobsiege.network.PacketUpdateWaveName;
+
 @EventBusSubscriber(modid = SimpleMobSiege.MODID, bus = EventBusSubscriber.Bus.MOD)
 public class NetworkHandler {
     @SubscribeEvent
@@ -15,6 +17,11 @@ public class NetworkHandler {
                 PacketStartSiege.TYPE,
                 PacketStartSiege.STREAM_CODEC,
                 PacketStartSiege::handle
+        );
+        registrar.playToServer(
+                PacketUpdateWaveName.TYPE,
+                PacketUpdateWaveName.STREAM_CODEC,
+                PacketUpdateWaveName::handle
         );
     }
 }

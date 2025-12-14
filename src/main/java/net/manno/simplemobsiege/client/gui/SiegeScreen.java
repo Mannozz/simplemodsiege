@@ -3,9 +3,11 @@ package net.manno.simplemobsiege.client.gui;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.manno.simplemobsiege.SimpleMobSiege;
 import net.manno.simplemobsiege.network.PacketStartSiege;
+import net.manno.simplemobsiege.network.PacketUpdateWaveName;
 import net.manno.simplemobsiege.world.inventory.SiegeMenu;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
@@ -15,6 +17,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 
 public class SiegeScreen extends AbstractContainerScreen<SiegeMenu> {
     private static final ResourceLocation TEXTURE = new ResourceLocation(SimpleMobSiege.MODID, "textures/gui/siege_gui.png");
+    private EditBox nameBox;
 
     public SiegeScreen(SiegeMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
@@ -25,6 +28,18 @@ public class SiegeScreen extends AbstractContainerScreen<SiegeMenu> {
     @Override
     protected void init() {
         super.init();
+        
+        // Name Box - At the top
+        this.nameBox = new EditBox(this.font, this.leftPos + 40, this.topPos + 5, 128, 12, Component.translatable("gui.simplemobsiege.wave_name"));
+        this.nameBox.setMaxLength(32);
+        this.nameBox.setValue(this.menu.blockEntity.getWaveName());
+        this.nameBox.setBordered(true);
+        this.nameBox.setCanLoseFocus(true);
+        this.nameBox.setResponder((text) -> {
+            PacketDistributor.sendToServer(new PacketUpdateWaveName(this.menu.blockEntity.getBlockPos(), text));
+        });
+        this.addRenderableWidget(this.nameBox);
+
         // Add Start Button
         this.addRenderableWidget(Button.builder(Component.translatable("gui.simplemobsiege.start"), (button) -> {
             PacketDistributor.sendToServer(new PacketStartSiege(this.menu.blockEntity.getBlockPos()));

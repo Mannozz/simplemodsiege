@@ -76,6 +76,7 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
     private int mobsAlive = 0;
     private boolean waveSpawned = false;
     private int victoryPulseTicks = 0;
+    private String waveName = "";
 
     public SiegeBlockEntity(BlockPos pos, BlockState blockState) {
         super(ModBlockEntities.SIEGE_BLOCK_ENTITY.get(), pos, blockState);
@@ -99,6 +100,16 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
     
     public boolean isProvidingSignal() {
         return victoryPulseTicks > 0;
+    }
+    
+    public String getWaveName() {
+        return waveName;
+    }
+
+    public void setWaveName(String name) {
+        this.waveName = name;
+        setChanged();
+        level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
     }
 
     // Add Getter
@@ -190,7 +201,12 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         // Update Boss Bar
         bossEvent.setVisible(true);
         bossEvent.setProgress(durability / 100.0f);
-        bossEvent.setName(Component.translatable("event.simplemobsiege.siege.wave", currentWave + 1, mobsAlive));
+        
+        if (waveName != null && !waveName.isEmpty()) {
+            bossEvent.setName(Component.literal(waveName + " (").append(Component.translatable("event.simplemobsiege.siege.wave", currentWave + 1, mobsAlive)).append(")"));
+        } else {
+            bossEvent.setName(Component.translatable("event.simplemobsiege.siege.wave", currentWave + 1, mobsAlive));
+        }
 
         if (tickCounter % 20 == 0) {
             // Update players
@@ -400,6 +416,7 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         
         tag.putInt("CurrentWave", currentWave);
         tag.putFloat("Durability", durability);
+        tag.putString("WaveName", waveName);
     }
 
     @Override
@@ -431,6 +448,9 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
 
         currentWave = tag.getInt("CurrentWave");
         durability = tag.getFloat("Durability");
+        if(tag.contains("WaveName")) {
+            waveName = tag.getString("WaveName");
+        }
     }
 
     @Override
