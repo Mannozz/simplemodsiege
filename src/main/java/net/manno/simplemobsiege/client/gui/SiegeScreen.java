@@ -46,6 +46,10 @@ public class SiegeScreen extends AbstractContainerScreen<SiegeMenu> {
         guiGraphics.drawString(this.font, "Challenge", this.leftPos + 8, this.topPos + 30, 0x404040, false);
         // Rewards
         guiGraphics.drawString(this.font, "Rewards", this.leftPos + 8, this.topPos + 52, 0x404040, false);
+        
+        // Render Spawn Points
+        int count = this.menu.blockEntity.getSpawnPoints().size();
+        guiGraphics.drawString(this.font, Component.translatable("gui.simplemobsiege.spawn_points", count), this.leftPos + 8, this.topPos + 75, 0x404040, false);
     }
 
     @Override

@@ -17,5 +17,6 @@
   "message.simplemobsiege.linked": "生成点已连接至位于 %s 的攻城方块",
   "message.simplemobsiege.link_failed": "连接失败：未找到攻城方块。",
   "message.simplemobsiege.no_selection": "未选择攻城方块。请先按住Shift右键点击攻城方块。",
-  "gui.simplemobsiege.start": "开始"
+  "gui.simplemobsiege.start": "开始",
+  "gui.simplemobsiege.spawn_points": "已绑定生成点: %s"
 }

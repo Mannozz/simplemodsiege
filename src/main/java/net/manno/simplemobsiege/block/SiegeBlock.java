@@ -48,7 +48,7 @@ public class SiegeBlock extends BaseEntityBlock {
             if (hasSignal) {
                 BlockEntity be = level.getBlockEntity(pos);
                 if (be instanceof SiegeBlockEntity siegeBe) {
-                    siegeBe.startSiege(null); // Pass null player for redstone activation
+                    siegeBe.startSiege((Player)null); // Pass null player for redstone activation
                 }
             }
         }

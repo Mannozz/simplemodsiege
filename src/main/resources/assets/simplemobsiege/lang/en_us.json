@@ -17,5 +17,6 @@
   "message.simplemobsiege.linked": "Spawn Point linked to Siege Block at %s",
   "message.simplemobsiege.link_failed": "Link failed: Siege Block not found.",
   "message.simplemobsiege.no_selection": "No Siege Block selected. Shift-Right-Click a Siege Block first.",
-  "gui.simplemobsiege.start": "Start"
+  "gui.simplemobsiege.start": "Start",
+  "gui.simplemobsiege.spawn_points": "Spawn Points: %s"
 }

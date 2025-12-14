@@ -3,6 +3,7 @@ package net.manno.simplemobsiege.block.entity;
 import net.manno.simplemobsiege.SimpleMobSiege;
 import net.manno.simplemobsiege.entity.ai.SiegeAttackGoal;
 import net.manno.simplemobsiege.registry.ModBlockEntities;
+import net.manno.simplemobsiege.registry.ModBlocks;
 import net.manno.simplemobsiege.registry.ModDataComponents;
 import net.manno.simplemobsiege.registry.ModItems;
 import net.manno.simplemobsiege.world.inventory.SiegeMenu;
@@ -80,6 +81,22 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         super(ModBlockEntities.SIEGE_BLOCK_ENTITY.get(), pos, blockState);
     }
 
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        return saveWithoutMetadata(registries);
+    }
+
+    @Nullable
+    @Override
+    public net.minecraft.network.protocol.Packet<net.minecraft.network.protocol.game.ClientGamePacketListener> getUpdatePacket() {
+        return net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket.create(this);
+    }
+    
+    // Add Getter
+    public Set<BlockPos> getSpawnPoints() {
+        return spawnPoints;
+    }
+
     public void addSpawnPoint(BlockPos pos) {
         this.spawnPoints.add(pos);
         setChanged();
@@ -105,8 +122,29 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
             }
 
             if (spawnPoints.isEmpty()) {
-                if(player != null) player.displayClientMessage(Component.translatable("message.simplemobsiege.no_spawn_points"), true);
-                return;
+                // Try to find nearby spawn points and auto-link them if they point to us
+                AABB searchArea = new AABB(worldPosition).inflate(64);
+                // We can't iterate blocks efficiently with AABB.
+                // Iterate a reasonable range instead
+                BlockPos.MutableBlockPos mPos = new BlockPos.MutableBlockPos();
+                int range = 32;
+                for(int x = -range; x <= range; x++) {
+                    for(int y = -10; y <= 10; y++) {
+                        for(int z = -range; z <= range; z++) {
+                            mPos.set(worldPosition.getX() + x, worldPosition.getY() + y, worldPosition.getZ() + z);
+                            if(level.getBlockEntity(mPos) instanceof net.manno.simplemobsiege.block.entity.SpawnPointBlockEntity spawnBe) {
+                                if(this.worldPosition.equals(spawnBe.getSiegeBlockPos())) {
+                                    addSpawnPoint(mPos.immutable());
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (spawnPoints.isEmpty()) {
+                    if(player != null) player.displayClientMessage(Component.translatable("message.simplemobsiege.no_spawn_points"), true);
+                    return;
+                }
             }
             
             SimpleMobSiege.LOGGER.info("Starting siege at {}", worldPosition);
@@ -225,22 +263,44 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
             return false;
         }
 
-        // Spawn at all linked spawn points
-        List<BlockPos> points = new ArrayList<>(spawnPoints);
-        if (points.isEmpty()) {
-             SimpleMobSiege.LOGGER.warn("No spawn points linked!");
+        // Validate and filter linked spawn points
+        List<BlockPos> validActivePoints = new ArrayList<>();
+        List<BlockPos> toRemove = new ArrayList<>();
+
+        for (BlockPos pos : spawnPoints) {
+            if (!level.isLoaded(pos)) continue; // Skip unloaded, don't remove
+            
+            if (!level.getBlockState(pos).is(ModBlocks.SPAWN_POINT_BLOCK.get())) {
+                toRemove.add(pos);
+                continue;
+            }
+            
+            if (level.getBlockEntity(pos) instanceof SpawnPointBlockEntity spawnBe) {
+                // Auto-fix legacy or missing links
+                if (spawnBe.getSiegeBlockPos() == null) {
+                    spawnBe.setSiegeBlockPos(this.worldPosition);
+                    validActivePoints.add(pos);
+                } else if (this.worldPosition.equals(spawnBe.getSiegeBlockPos())) {
+                    validActivePoints.add(pos);
+                } else {
+                    // Linked to someone else
+                    toRemove.add(pos);
+                }
+            } else {
+                toRemove.add(pos);
+            }
+        }
+        
+        spawnPoints.removeAll(toRemove);
+        if (!toRemove.isEmpty()) setChanged();
+        
+        if (validActivePoints.isEmpty()) {
+             SimpleMobSiege.LOGGER.warn("No valid spawn points linked!");
              return false;
         }
 
         // Get count from stack size
         int countPerPoint = card.getCount(); 
-        // User said: "Stack quantity corresponds to refresh quantity".
-        // But "Linked multiple points... decides this wave's quantity".
-        // Let's assume Total Quantity = Stack Size * Points? Or Total Quantity = Stack Size distributed?
-        // User: "Stack count corresponds to that kind of mob in one activity refresh quantity".
-        // "If multiple cards of same type... accumulate".
-        // Since we only check one slot per wave, the stack size is the total count for this wave type.
-        // We should distribute them among spawn points.
         
         int totalToSpawn = countPerPoint;
         int spawnedCount = 0;
@@ -250,10 +310,6 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         for(int i=9; i<18; i++) {
             ItemStack challenge = itemHandler.getStackInSlot(i);
             if(!challenge.isEmpty() && challenge.getItem() == ModItems.CHALLENGE_CARD.get()) {
-                // Determine effect. For now, we can use item name or custom data.
-                // Assuming simple hardcoded effects for prototype based on item name or similar?
-                // Or just random buff for now if no Data Component?
-                // We'll just give Speed/Strength for now as a placeholder.
                 effects.add("buff");
             }
         }
@@ -262,7 +318,7 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         int pointIndex = 0;
         
         for(int i=0; i<totalToSpawn; i++) {
-            BlockPos spawnPos = points.get(pointIndex % points.size());
+            BlockPos spawnPos = validActivePoints.get(pointIndex % validActivePoints.size());
             pointIndex++;
             
             if (level.isLoaded(spawnPos)) {
@@ -273,7 +329,6 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
                     
                     // Apply Challenge Effects
                     for(String effect : effects) {
-                        // Example effects
                         if(effect.equals("buff")) {
                             mob.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 9999, 1));
                             mob.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 9999, 0));
@@ -341,9 +396,16 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         
         if (tag.contains("SpawnPoints")) {
             spawnPoints.clear();
-            long[] points = tag.getLongArray("SpawnPoints");
-            for (long p : points) {
-                spawnPoints.add(BlockPos.of(p));
+            Tag t = tag.get("SpawnPoints");
+            if (t instanceof net.minecraft.nbt.LongArrayTag) {
+                long[] points = ((net.minecraft.nbt.LongArrayTag)t).getAsLongArray();
+                for (long p : points) {
+                    spawnPoints.add(BlockPos.of(p));
+                }
+            } else if (t instanceof ListTag list && list.getElementType() == Tag.TAG_LONG) {
+                for (Tag item : list) {
+                    spawnPoints.add(BlockPos.of(((LongTag) item).getAsLong()));
+                }
             }
         }
 
