@@ -31,24 +31,24 @@ public class SiegeMenu extends AbstractContainerMenu {
         // BE Inventory Slots
         // Wave: 0-8
         for (int i = 0; i < 9; ++i) {
-            this.addSlot(new SlotItemHandler(blockEntity.getItemHandler(), i, 8 + i * 18, 18));
+            this.addSlot(new SlotItemHandler(blockEntity.getItemHandler(), i, 8 + i * 18, 12 + 4 + 12));
         }
-        
+
         // Challenge: 9-17
         for (int i = 0; i < 9; ++i) {
-            this.addSlot(new SlotItemHandler(blockEntity.getItemHandler(), i + 9, 8 + i * 18, 50));
+            this.addSlot(new SlotItemHandler(blockEntity.getItemHandler(), i + 9, 8 + i * 18, 12 + 4 + 12 + 4 + 18 + 4));
         }
 
         // Player Inventory
         for (int i = 0; i < 3; ++i) {
             for (int j = 0; j < 9; ++j) {
-                this.addSlot(new Slot(inv, j + i * 9 + 9, 8 + j * 18, 84 + i * 18 + 10)); // Adjusted Y
+                this.addSlot(new Slot(inv, j + i * 9 + 9, 8 + j * 18, 84 + i * 18 + 10 + 12)); // Adjusted Y
             }
         }
 
         // Player Hotbar
         for (int k = 0; k < 9; ++k) {
-            this.addSlot(new Slot(inv, k, 8 + k * 18, 142 + 10)); // Adjusted Y
+            this.addSlot(new Slot(inv, k, 8 + k * 18, 142 + 10 + 12)); // Adjusted Y
         }
     }
 

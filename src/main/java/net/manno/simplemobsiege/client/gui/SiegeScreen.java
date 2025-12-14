@@ -22,15 +22,15 @@ public class SiegeScreen extends AbstractContainerScreen<SiegeMenu> {
     public SiegeScreen(SiegeMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
         this.imageWidth = 176;
-        this.imageHeight = 176; // Larger height for extra rows
+        this.imageHeight = 220;//larger height for extra rows
     }
 
     @Override
     protected void init() {
         super.init();
-        
+
         // Name Box - At the top
-        this.nameBox = new EditBox(this.font, this.leftPos + 40, this.topPos + 5, 128, 12, Component.translatable("gui.simplemobsiege.wave_name"));
+        this.nameBox = new EditBox(this.font, this.leftPos + 65, this.topPos + 5, 100, 12, Component.translatable("gui.simplemobsiege.wave_name"));
         this.nameBox.setMaxLength(32);
         this.nameBox.setValue(this.menu.blockEntity.getWaveName());
         this.nameBox.setBordered(true);
@@ -44,7 +44,7 @@ public class SiegeScreen extends AbstractContainerScreen<SiegeMenu> {
         this.addRenderableWidget(Button.builder(Component.translatable("gui.simplemobsiege.start"), (button) -> {
             PacketDistributor.sendToServer(new PacketStartSiege(this.menu.blockEntity.getBlockPos()));
             this.onClose();
-        }).bounds(this.leftPos + 120, this.topPos + 60, 40, 20).build());
+        }).bounds(this.leftPos + 120, this.topPos + 180, 40, 16).build());
     }
 
     @Override
@@ -56,13 +56,13 @@ public class SiegeScreen extends AbstractContainerScreen<SiegeMenu> {
         guiGraphics.fill(this.leftPos, this.topPos, this.leftPos + this.imageWidth, this.topPos + this.imageHeight, 0xFFC6C6C6);
         // Draw slots locations (debug style)
         // Wave
-        guiGraphics.drawString(this.font, "Wave", this.leftPos + 8, this.topPos + 8, 0x404040, false);
+        guiGraphics.drawString(this.font, "Wave", this.leftPos + 8, this.topPos + 4 + 12, 0x404040, false);
         // Challenge
-        guiGraphics.drawString(this.font, "Challenge", this.leftPos + 8, this.topPos + 40, 0x404040, false);
-        
+        guiGraphics.drawString(this.font, "Challenge", this.leftPos + 8, this.topPos + 4 + 12 + 4 + 18 + 4 + 2, 0x404040, false);
+
         // Render Spawn Points
         int count = this.menu.blockEntity.getSpawnPoints().size();
-        guiGraphics.drawString(this.font, Component.translatable("gui.simplemobsiege.spawn_points", count), this.leftPos + 8, this.topPos + 75, 0x404040, false);
+        guiGraphics.drawString(this.font, Component.translatable("gui.simplemobsiege.spawn_points", count), this.leftPos + 8, this.topPos + 185, 0x404040, false);
     }
 
     @Override
