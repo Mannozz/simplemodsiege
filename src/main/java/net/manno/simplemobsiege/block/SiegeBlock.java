@@ -20,6 +20,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import com.mojang.serialization.MapCodec;
 import org.jetbrains.annotations.Nullable;
 
+
 public class SiegeBlock extends BaseEntityBlock {
     public SiegeBlock(Properties properties) {
         super(properties);
@@ -28,6 +29,20 @@ public class SiegeBlock extends BaseEntityBlock {
     @Override
     protected MapCodec<? extends BaseEntityBlock> codec() {
         return simpleCodec(SiegeBlock::new);
+    }
+
+    @Override
+    public boolean isSignalSource(BlockState state) {
+        return true;
+    }
+
+    @Override
+    public int getSignal(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos, net.minecraft.core.Direction direction) {
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof SiegeBlockEntity siegeBe) {
+            return siegeBe.isVictory() ? 15 : 0;
+        }
+        return 0;
     }
 
     @Override
@@ -48,7 +63,7 @@ public class SiegeBlock extends BaseEntityBlock {
             if (hasSignal) {
                 BlockEntity be = level.getBlockEntity(pos);
                 if (be instanceof SiegeBlockEntity siegeBe) {
-                    siegeBe.startSiege((Player)null); // Pass null player for redstone activation
+                    siegeBe.startSiege(null); // Pass null player for redstone activation
                 }
             }
         }

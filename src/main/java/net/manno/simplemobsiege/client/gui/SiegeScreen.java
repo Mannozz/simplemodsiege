@@ -40,12 +40,10 @@ public class SiegeScreen extends AbstractContainerScreen<SiegeMenu> {
         // Fallback since we don't have the texture: draw a grey rectangle
         guiGraphics.fill(this.leftPos, this.topPos, this.leftPos + this.imageWidth, this.topPos + this.imageHeight, 0xFFC6C6C6);
         // Draw slots locations (debug style)
-        // Waves
-        guiGraphics.drawString(this.font, "Waves", this.leftPos + 8, this.topPos + 8, 0x404040, false);
+        // Wave
+        guiGraphics.drawString(this.font, "Wave", this.leftPos + 8, this.topPos + 8, 0x404040, false);
         // Challenge
-        guiGraphics.drawString(this.font, "Challenge", this.leftPos + 8, this.topPos + 30, 0x404040, false);
-        // Rewards
-        guiGraphics.drawString(this.font, "Rewards", this.leftPos + 8, this.topPos + 52, 0x404040, false);
+        guiGraphics.drawString(this.font, "Challenge", this.leftPos + 8, this.topPos + 40, 0x404040, false);
         
         // Render Spawn Points
         int count = this.menu.blockEntity.getSpawnPoints().size();

@@ -26,20 +26,17 @@ public class SiegeMenu extends AbstractContainerMenu {
         this.blockEntity = (SiegeBlockEntity) entity;
         this.levelAccess = levelAccess;
 
-        checkContainerSize(inv, 27);
+        checkContainerSize(inv, 18);
 
         // BE Inventory Slots
-        // Waves: 0-8
+        // Wave: 0-8
         for (int i = 0; i < 9; ++i) {
             this.addSlot(new SlotItemHandler(blockEntity.getItemHandler(), i, 8 + i * 18, 18));
         }
+        
         // Challenge: 9-17
         for (int i = 0; i < 9; ++i) {
-            this.addSlot(new SlotItemHandler(blockEntity.getItemHandler(), i + 9, 8 + i * 18, 40));
-        }
-        // Rewards: 18-26
-        for (int i = 0; i < 9; ++i) {
-            this.addSlot(new SlotItemHandler(blockEntity.getItemHandler(), i + 18, 8 + i * 18, 62));
+            this.addSlot(new SlotItemHandler(blockEntity.getItemHandler(), i + 9, 8 + i * 18, 50));
         }
 
         // Player Inventory
@@ -62,11 +59,11 @@ public class SiegeMenu extends AbstractContainerMenu {
         if (slot != null && slot.hasItem()) {
             ItemStack itemstack1 = slot.getItem();
             itemstack = itemstack1.copy();
-            if (index < 27) { // From Container to Player
-                if (!this.moveItemStackTo(itemstack1, 27, this.slots.size(), true)) {
+            if (index < 18) { // From Container to Player
+                if (!this.moveItemStackTo(itemstack1, 18, this.slots.size(), true)) {
                     return ItemStack.EMPTY;
                 }
-            } else if (!this.moveItemStackTo(itemstack1, 0, 27, false)) { // From Player to Container
+            } else if (!this.moveItemStackTo(itemstack1, 0, 18, false)) { // From Player to Container
                 return ItemStack.EMPTY;
             }
 

@@ -54,10 +54,9 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
 
     private State state = State.IDLE;
     private final Set<BlockPos> spawnPoints = new HashSet<>();
-    // 0-8: Waves (Mob Cards)
+    // 0-8: Wave (Mob Cards)
     // 9-17: Challenge Cards
-    // 18-26: Rewards
-    private final ItemStackHandler itemHandler = new ItemStackHandler(27) {
+    private final ItemStackHandler itemHandler = new ItemStackHandler(18) {
         @Override
         protected void onContentsChanged(int slot) {
             setChanged();
@@ -93,6 +92,11 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
     }
     
     // Add Getter
+    public boolean isVictory() {
+        return state == State.VICTORY;
+    }
+
+    // Add Getter
     public Set<BlockPos> getSpawnPoints() {
         return spawnPoints;
     }
@@ -108,7 +112,7 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
             // Reset state
             state = State.IDLE;
             
-            // Check if we have waves configured
+            // Check if we have wave configured
             boolean hasWaves = false;
             for(int i=0; i<9; i++) {
                 if(!itemHandler.getStackInSlot(i).isEmpty()) {
@@ -116,7 +120,7 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
                     break;
                 }
             }
-            if (!hasWaves) {
+            if(!hasWaves) {
                 if(player != null) player.displayClientMessage(Component.translatable("message.simplemobsiege.no_waves"), true);
                 return;
             }
@@ -195,7 +199,8 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         // Passive Durability Drain & Victory Check
         if (tickCounter % 20 == 0) {
             // Check mobs
-            AABB checkArea = new AABB(worldPosition).inflate(32);
+            // Use configured radius
+            AABB checkArea = new AABB(worldPosition).inflate(256); 
             List<Mob> invaders = ((ServerLevel)level).getEntitiesOfClass(Mob.class, checkArea, 
                 e -> e.getTags().contains("simplemobsiege.invader"));
             
@@ -215,53 +220,53 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
 
             // Wave Logic
             if (!waveSpawned) {
-                // Find next valid wave
-                ItemStack card = itemHandler.getStackInSlot(currentWave);
-                while(card.isEmpty() && currentWave < 9) {
-                     currentWave++;
-                     if(currentWave < 9) card = itemHandler.getStackInSlot(currentWave);
-                }
-                
-                if (currentWave >= 9) {
-                    winSiege();
-                    return;
-                }
-
                 if (spawnWave()) {
                     waveSpawned = true;
-                    SimpleMobSiege.LOGGER.info("Wave {} spawned successfully", currentWave);
+                    SimpleMobSiege.LOGGER.info("Wave spawned successfully");
                 } else {
-                     SimpleMobSiege.LOGGER.warn("Wave {} failed to spawn. Card: {}, SpawnPoints: {}", currentWave, card, spawnPoints.size());
-                     // Skip this wave if it fails
-                     currentWave++;
+                     // Check if wave is empty (no card?)
+                     boolean hasCards = false;
+                     for(int i=0; i<9; i++) {
+                         if(!itemHandler.getStackInSlot(i).isEmpty()) {
+                             hasCards = true;
+                             break;
+                         }
+                     }
+                     if (!hasCards) {
+                         // Should not happen if started correctly
+                         winSiege();
+                     } else {
+                         SimpleMobSiege.LOGGER.warn("Wave failed to spawn. SpawnPoints: {}", spawnPoints.size());
+                         // Fail or retry? For now, do nothing, just wait tick
+                     }
                 }
             } else {
                 if (mobsAlive == 0) {
-                    // Wave Cleared
-                    currentWave++;
-                    SimpleMobSiege.LOGGER.info("Wave cleared. Advancing to wave {}", currentWave);
+                    // Only win if we are sure we spawned something and now they are dead.
+                    // But wait, what if mobs despawned or teleported away?
+                    // We increased check radius to 128.
+                    // We could also track spawned UUIDs but that is more complex.
+                    // For now, large radius should suffice for "spawn point too far".
                     
-                    if (currentWave >= 9) {
-                        winSiege();
-                    } else {
-                        waveSpawned = false; // Prepare for next wave
-                    }
+                    winSiege();
                 }
             }
         }
     }
 
     private boolean spawnWave() {
-        if (currentWave >= 9) return false;
-        ItemStack card = itemHandler.getStackInSlot(currentWave);
-        if (card.isEmpty() || !card.has(ModDataComponents.MOB_TYPE)) return false;
-
-        String mobTypeStr = card.get(ModDataComponents.MOB_TYPE);
-        EntityType<?> type = EntityType.byString(mobTypeStr).orElse(null);
-        if (type == null) {
-            SimpleMobSiege.LOGGER.error("Invalid entity type: {}", mobTypeStr);
-            return false;
+        if (currentWave >= 18) return false;
+        
+        // Collect all valid mob cards in wave slots (0-8)
+        List<ItemStack> waveCards = new ArrayList<>();
+        for(int i=0; i<9; i++) {
+            ItemStack s = itemHandler.getStackInSlot(i);
+            if(!s.isEmpty() && s.has(ModDataComponents.MOB_TYPE)) {
+                waveCards.add(s);
+            }
         }
+        
+        if (waveCards.isEmpty()) return false;
 
         // Validate and filter linked spawn points
         List<BlockPos> validActivePoints = new ArrayList<>();
@@ -298,12 +303,6 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
              SimpleMobSiege.LOGGER.warn("No valid spawn points linked!");
              return false;
         }
-
-        // Get count from stack size
-        int countPerPoint = card.getCount(); 
-        
-        int totalToSpawn = countPerPoint;
-        int spawnedCount = 0;
         
         // Collect Challenge Effects
         List<String> effects = new ArrayList<>();
@@ -317,26 +316,37 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         boolean spawnedAny = false;
         int pointIndex = 0;
         
-        for(int i=0; i<totalToSpawn; i++) {
-            BlockPos spawnPos = validActivePoints.get(pointIndex % validActivePoints.size());
-            pointIndex++;
-            
-            if (level.isLoaded(spawnPos)) {
-                Entity entity = type.spawn((ServerLevel) level, spawnPos.above(), MobSpawnType.EVENT);
-                if (entity instanceof Mob mob) {
-                    mob.addTag("simplemobsiege.invader");
-                    mob.goalSelector.addGoal(1, new SiegeAttackGoal(mob, worldPosition));
-                    
-                    // Apply Challenge Effects
-                    for(String effect : effects) {
-                        if(effect.equals("buff")) {
-                            mob.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 9999, 1));
-                            mob.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 9999, 0));
+        for (ItemStack card : waveCards) {
+            String mobTypeStr = card.get(ModDataComponents.MOB_TYPE);
+            EntityType<?> type = EntityType.byString(mobTypeStr).orElse(null);
+            if (type == null) {
+                SimpleMobSiege.LOGGER.error("Invalid entity type: {}", mobTypeStr);
+                continue;
+            }
+
+            int countPerPoint = card.getCount(); 
+            int totalToSpawn = countPerPoint;
+
+            for(int i=0; i<totalToSpawn; i++) {
+                BlockPos spawnPos = validActivePoints.get(pointIndex % validActivePoints.size());
+                pointIndex++;
+                
+                if (level.isLoaded(spawnPos)) {
+                    Entity entity = type.spawn((ServerLevel) level, spawnPos.above(), MobSpawnType.EVENT);
+                    if (entity instanceof Mob mob) {
+                        mob.addTag("simplemobsiege.invader");
+                        mob.goalSelector.addGoal(1, new SiegeAttackGoal(mob, worldPosition));
+                        
+                        // Apply Challenge Effects
+                        for(String effect : effects) {
+                            if(effect.equals("buff")) {
+                                mob.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 9999, 1));
+                                mob.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, 9999, 0));
+                            }
                         }
+                        
+                        spawnedAny = true;
                     }
-                    
-                    spawnedAny = true;
-                    spawnedCount++;
                 }
             }
         }
@@ -358,16 +368,10 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         SimpleMobSiege.LOGGER.info("Siege won!");
         bossEvent.setName(Component.translatable("event.simplemobsiege.siege.victory"));
         bossEvent.setColor(BossEvent.BossBarColor.GREEN);
-        
-        // Distribute rewards
-        for (int i = 0; i < 9; i++) {
-            ItemStack reward = itemHandler.getStackInSlot(18 + i);
-            if (!reward.isEmpty()) {
-                Block.popResource(level, worldPosition.above(), reward.copy());
-                itemHandler.setStackInSlot(18 + i, ItemStack.EMPTY);
-            }
-        }
         setChanged();
+        
+        // Output Redstone
+        level.updateNeighborsAt(worldPosition, this.getBlockState().getBlock());
     }
 
     @Override
