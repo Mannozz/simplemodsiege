@@ -40,7 +40,7 @@ public class SiegeBlock extends BaseEntityBlock {
     public int getSignal(BlockState state, net.minecraft.world.level.BlockGetter level, BlockPos pos, net.minecraft.core.Direction direction) {
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof SiegeBlockEntity siegeBe) {
-            return siegeBe.isVictory() ? 15 : 0;
+            return siegeBe.isProvidingSignal() ? 15 : 0;
         }
         return 0;
     }

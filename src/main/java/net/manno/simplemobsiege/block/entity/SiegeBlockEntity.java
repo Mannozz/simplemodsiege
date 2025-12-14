@@ -75,6 +75,7 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
     private int tickCounter = 0;
     private int mobsAlive = 0;
     private boolean waveSpawned = false;
+    private int victoryPulseTicks = 0;
 
     public SiegeBlockEntity(BlockPos pos, BlockState blockState) {
         super(ModBlockEntities.SIEGE_BLOCK_ENTITY.get(), pos, blockState);
@@ -94,6 +95,10 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
     // Add Getter
     public boolean isVictory() {
         return state == State.VICTORY;
+    }
+    
+    public boolean isProvidingSignal() {
+        return victoryPulseTicks > 0;
     }
 
     // Add Getter
@@ -168,6 +173,14 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     private void serverTick() {
+        // Handle Redstone Pulse
+        if (victoryPulseTicks > 0) {
+            victoryPulseTicks--;
+            if (victoryPulseTicks == 0) {
+                level.updateNeighborsAt(worldPosition, this.getBlockState().getBlock());
+            }
+        }
+
         if (state != State.ACTIVE) {
             bossEvent.setVisible(false);
             bossEvent.removeAllPlayers();
@@ -252,6 +265,7 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
                 }
             }
         }
+        
     }
 
     private boolean spawnWave() {
@@ -364,13 +378,15 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     private void winSiege() {
+        if (state == State.VICTORY) return; // Prevent multiple triggers
         state = State.VICTORY;
         SimpleMobSiege.LOGGER.info("Siege won!");
         bossEvent.setName(Component.translatable("event.simplemobsiege.siege.victory"));
         bossEvent.setColor(BossEvent.BossBarColor.GREEN);
         setChanged();
         
-        // Output Redstone
+        // Output Redstone Pulse (20 ticks = 1 second)
+        victoryPulseTicks = 20;
         level.updateNeighborsAt(worldPosition, this.getBlockState().getBlock());
     }
 
