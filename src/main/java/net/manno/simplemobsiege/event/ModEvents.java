@@ -1,6 +1,7 @@
 package net.manno.simplemobsiege.event;
 
 import net.manno.simplemobsiege.SimpleMobSiege;
+import net.manno.simplemobsiege.block.entity.SiegeBlockEntity;
 import net.manno.simplemobsiege.registry.ModDataComponents;
 import net.manno.simplemobsiege.registry.ModItems;
 import net.minecraft.world.entity.EntityType;
@@ -9,9 +10,15 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 
 @EventBusSubscriber(modid = SimpleMobSiege.MODID)
 public class ModEvents {
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        SiegeBlockEntity.clearGroups();
+    }
+
     @SubscribeEvent
     public static void onLivingDeath(LivingDeathEvent event) {
         if (event.getSource().getEntity() instanceof Player player) {

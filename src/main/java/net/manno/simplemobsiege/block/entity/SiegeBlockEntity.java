@@ -63,11 +63,140 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         }
     };
     
-    private final ServerBossEvent bossEvent = (ServerBossEvent) new ServerBossEvent(
-            Component.translatable("event.simplemobsiege.siege"),
-            BossEvent.BossBarColor.RED,
-            BossEvent.BossBarOverlay.PROGRESS
-    ).setDarkenScreen(false);
+    // Shared Siege Logic
+    private static final java.util.Map<String, SiegeGroup> SIEGE_GROUPS = new java.util.HashMap<>();
+
+    public static void clearGroups() {
+        SIEGE_GROUPS.clear();
+    }
+    
+    private static class SiegeGroup {
+        private final String name;
+        private final ServerBossEvent bossEvent;
+        private final Set<SiegeBlockEntity> members = new HashSet<>();
+        private final java.util.Map<SiegeBlockEntity, Set<java.util.UUID>> mobObservations = new java.util.HashMap<>();
+        private float durability;
+        private int maxWave = 0;
+
+        private final java.util.Map<SiegeBlockEntity, java.util.Collection<ServerPlayer>> nearbyPlayersMap = new java.util.HashMap<>();
+
+        public SiegeGroup(String name, float initialDurability) {
+            this.name = name;
+            this.durability = initialDurability;
+            this.bossEvent = (ServerBossEvent) new ServerBossEvent(
+                    Component.translatable("event.simplemobsiege.siege"),
+                    BossEvent.BossBarColor.RED,
+                    BossEvent.BossBarOverlay.PROGRESS
+            ).setDarkenScreen(false);
+            this.bossEvent.setVisible(true);
+        }
+
+        public void addMember(SiegeBlockEntity be) {
+            members.add(be);
+            // Sync durability: Take the lower (more damaged) value to prevent healing exploits on reload
+            if (be.durability < this.durability) {
+                this.durability = be.durability;
+            }
+            be.durability = this.durability;
+        }
+
+        public void removeMember(SiegeBlockEntity be) {
+            members.remove(be);
+            mobObservations.remove(be);
+            nearbyPlayersMap.remove(be);
+            if (members.isEmpty()) {
+                bossEvent.removeAllPlayers();
+                bossEvent.setVisible(false);
+                SIEGE_GROUPS.remove(name);
+            }
+        }
+
+        public void update(SiegeBlockEntity be, Set<java.util.UUID> mobs, float damage, int wave, java.util.Collection<ServerPlayer> players) {
+            mobObservations.put(be, mobs);
+            nearbyPlayersMap.put(be, players);
+            
+            if (damage > 0) {
+                this.durability -= damage;
+                if (this.durability < 0) this.durability = 0;
+            }
+            // Sync back to member
+            be.durability = this.durability;
+
+            if (wave > maxWave) maxWave = wave;
+            
+            updateBossBar();
+        }
+        
+        public int getTotalMobs() {
+            Set<java.util.UUID> uniqueMobs = new HashSet<>();
+            for (Set<java.util.UUID> mobs : mobObservations.values()) {
+                uniqueMobs.addAll(mobs);
+            }
+            return uniqueMobs.size();
+        }
+        
+        public void setVictory() {
+             bossEvent.setName(Component.translatable("event.simplemobsiege.siege.victory"));
+             bossEvent.setColor(BossEvent.BossBarColor.GREEN);
+        }
+        
+        public void setFailed() {
+             bossEvent.setName(Component.translatable("event.simplemobsiege.siege.failed"));
+             bossEvent.setColor(BossEvent.BossBarColor.RED);
+        }
+
+        private void updateBossBar() {
+            int totalMobs = getTotalMobs();
+            bossEvent.setProgress(durability / 100.0f);
+
+            Component waveInfo = Component.translatable("event.simplemobsiege.siege.wave", maxWave + 1, totalMobs);
+            
+            String displayName = name.startsWith("#") ? "" : name;
+            
+            if (!displayName.isEmpty()) {
+                bossEvent.setName(Component.literal(displayName + " (").append(waveInfo).append(")"));
+            } else {
+                bossEvent.setName(waveInfo);
+            }
+            
+            // Sync Players
+            Set<ServerPlayer> allPlayers = new HashSet<>();
+            for (java.util.Collection<ServerPlayer> pList : nearbyPlayersMap.values()) {
+                allPlayers.addAll(pList);
+            }
+            
+            // Add missing
+            for (ServerPlayer p : allPlayers) {
+                bossEvent.addPlayer(p);
+            }
+            
+            // Remove extra
+            // Getting existing players returns an immutable view or copy?
+            // getPlayers() returns unmodifiable collection usually.
+            // We need to copy it to iterate and remove.
+            List<ServerPlayer> current = new ArrayList<>(bossEvent.getPlayers());
+            for (ServerPlayer p : current) {
+                if (!allPlayers.contains(p)) {
+                    bossEvent.removePlayer(p);
+                }
+            }
+        }
+
+        public void addPlayer(ServerPlayer player) {
+            bossEvent.addPlayer(player);
+        }
+
+
+        public void removePlayer(ServerPlayer player) {
+            bossEvent.removePlayer(player);
+        }
+        
+        public java.util.Collection<ServerPlayer> getPlayers() {
+            return bossEvent.getPlayers();
+        }
+    }
+
+    private SiegeGroup siegeGroup;
 
     // Game Logic Variables
     private int currentWave = 0;
@@ -93,6 +222,39 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         return net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket.create(this);
     }
     
+    @Override
+    public void setRemoved() {
+        if (siegeGroup != null) {
+            siegeGroup.removeMember(this);
+            siegeGroup = null;
+        }
+        super.setRemoved();
+    }
+    
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        // If we loaded in ACTIVE state, we should rejoin group?
+        // But we might not have waveName initialized yet if loadAdditional hasn't run?
+        // onLoad runs after loadAdditional.
+        if (state == State.ACTIVE) {
+            joinSiegeGroup();
+        }
+    }
+
+    private void joinSiegeGroup() {
+        String key = (waveName != null && !waveName.isEmpty()) ? waveName : ("#" + worldPosition.asLong());
+        siegeGroup = SIEGE_GROUPS.computeIfAbsent(key, k -> new SiegeGroup(k, durability));
+        siegeGroup.addMember(this);
+    }
+    
+    private void leaveSiegeGroup() {
+        if (siegeGroup != null) {
+            siegeGroup.removeMember(this);
+            siegeGroup = null;
+        }
+    }
+
     // Add Getter
     public boolean isVictory() {
         return state == State.VICTORY;
@@ -107,7 +269,13 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
     }
 
     public void setWaveName(String name) {
-        this.waveName = name;
+        if (state == State.ACTIVE && !name.equals(this.waveName)) {
+            leaveSiegeGroup();
+            this.waveName = name;
+            joinSiegeGroup();
+        } else {
+            this.waveName = name;
+        }
         setChanged();
         level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
     }
@@ -174,6 +342,9 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
             tickCounter = 0;
             waveSpawned = false;
             mobsAlive = 0;
+            
+            joinSiegeGroup();
+            
             setChanged();
         }
     }
@@ -193,36 +364,97 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         }
 
         if (state != State.ACTIVE) {
-            bossEvent.setVisible(false);
-            bossEvent.removeAllPlayers();
+            if (siegeGroup != null) {
+                 leaveSiegeGroup();
+            }
             return;
         }
         
-        // Update Boss Bar
-        bossEvent.setVisible(true);
-        bossEvent.setProgress(durability / 100.0f);
-        
-        if (waveName != null && !waveName.isEmpty()) {
-            bossEvent.setName(Component.literal(waveName + " (").append(Component.translatable("event.simplemobsiege.siege.wave", currentWave + 1, mobsAlive)).append(")"));
-        } else {
-            bossEvent.setName(Component.translatable("event.simplemobsiege.siege.wave", currentWave + 1, mobsAlive));
+        if (siegeGroup == null) {
+            joinSiegeGroup();
         }
-
+        
+        // Player tracking via Group
         if (tickCounter % 20 == 0) {
             // Update players
             AABB range = new AABB(worldPosition).inflate(64);
             List<ServerPlayer> players = ((ServerLevel) level).getEntitiesOfClass(ServerPlayer.class, range);
             for (ServerPlayer player : players) {
-                bossEvent.addPlayer(player);
+                siegeGroup.addPlayer(player);
             }
             // Remove far players
-             for (ServerPlayer player : new ArrayList<>(bossEvent.getPlayers())) {
-                if (!range.contains(player.position())) {
-                    bossEvent.removePlayer(player);
-                }
-            }
+            // We need to be careful not to remove players that are near OTHER members of the group.
+            // But SiegeGroup manages one bossbar. 
+            // If we remove a player here, they might be re-added by another member?
+            // Actually ServerBossEvent handles add/remove idempotently.
+            // But if I call removePlayer, it removes them.
+            // So each member should only remove players that are NOT near ITSELF?
+            // No, if Player is near Block A but far from Block B.
+            // Block B says "Remove". Block A says "Add".
+            // If they run in same tick... order matters.
+            
+            // Better logic: Don't remove here. 
+            // Only ADD here.
+            // Let the Group handle removal?
+            // Or: Group checks all members for players to keep?
+            // That's expensive to do every tick.
+            
+            // Alternative:
+            // Just add.
+            // How to remove?
+            // Maybe iterate Group's players and check if they are near ANY member?
+            // Only the Group knows all members.
+            
+            // Let's implement cleanup in Group.update or a separate periodic check.
+            // For now, let's just ADD here. 
+            // And maybe have a leader do the cleanup?
+            
+            // Temporary fix: Iterate players in bossEvent, check distance to THIS block.
+            // If far, we WANT to remove, but only if they are not near others.
+            // Since we can't easily check others efficiently without iterating them...
+            
+            // Let's rely on a lazy cleanup in SiegeGroup?
+            // Or: Each member adds players near it.
+            // We clear the player list and rebuild it? 
+            // bossEvent.removeAllPlayers() causes packet spam? Maybe.
+            
+            // Let's check vanilla/standard practices.
+            // Usually you check `players` list and sync.
+            
+            // Let's add a "cleanupPlayers" method to SiegeGroup that runs periodically.
+            // And here we just ADD.
         }
-
+        
+        // We'll handle player removal in SiegeGroup.update logic if possible or let it slide for now.
+        // Or implement a robust check.
+        
+        // Actually, if we just never remove, players keep the bar forever. Bad.
+        // Let's make SiegeGroup.updateBossBar() handle player cleanup periodically.
+        // We need access to Level for that. 
+        // Members are in different chunks/locations.
+        
+        // Revised Plan for Players:
+        // Each member calculates "Players near me".
+        // We need the union of "Players near any member".
+        // SiegeGroup can maintain a Set<UUID> of players valid for this tick?
+        // Reset valid players set at start of tick? Hard to sync.
+        
+        // Alternative: 
+        // Players have a "time to live" in the boss bar? No.
+        
+        // Simple heuristic:
+        // Every 20 ticks (1 sec), each member updates the group with "Players near me".
+        // The group collects these sets.
+        // Then updates the BossEvent.
+        
+        // To do this sync:
+        // SiegeGroup maintains Map<SiegeBlockEntity, Set<ServerPlayer>> playerMap.
+        // In update(), we update this map.
+        // Then flatten values to get all valid players.
+        // Sync BossEvent to this set.
+        
+        // Let's add 'List<ServerPlayer> nearbyPlayers' to update().
+        
         tickCounter++;
 
         // Passive Durability Drain & Victory Check
@@ -234,13 +466,22 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
                 e -> e.getTags().contains("simplemobsiege.invader"));
             
             mobsAlive = invaders.size();
+            Set<java.util.UUID> observedIds = new HashSet<>();
+            for (Mob m : invaders) observedIds.add(m.getUUID());
             
+            float damageTaken = 0;
             // Drain logic: For each invader close to core
             for (Mob mob : invaders) {
                 if (mob.distanceToSqr(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ()) < 100) { // 10 blocks
-                    durability -= 0.5f;
+                    damageTaken += 0.5f;
                 }
             }
+
+            // Collect players for group sync
+            AABB range = new AABB(worldPosition).inflate(64);
+            List<ServerPlayer> nearbyPlayers = ((ServerLevel) level).getEntitiesOfClass(ServerPlayer.class, range);
+
+            siegeGroup.update(this, observedIds, damageTaken, currentWave, nearbyPlayers);
 
             if (durability <= 0) {
                 failSiege();
@@ -270,13 +511,14 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
                      }
                 }
             } else {
-                if (mobsAlive == 0) {
-                    // Only win if we are sure we spawned something and now they are dead.
-                    // But wait, what if mobs despawned or teleported away?
-                    // We increased check radius to 128.
-                    // We could also track spawned UUIDs but that is more complex.
-                    // For now, large radius should suffice for "spawn point too far".
-                    
+                 // Check aggregated mobs?
+                 // Wait, mobsAlive is local.
+                 // We need GROUP total mobs to decide win?
+                 // Yes.
+                 // Access group.getTotalMobs()?
+                 // We can get it from siegeGroup.
+                 
+                 if (siegeGroup.getTotalMobs() == 0) {
                     winSiege();
                 }
             }
@@ -387,8 +629,11 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
     private void failSiege() {
         state = State.FAILED;
         SimpleMobSiege.LOGGER.info("Siege failed!");
-        bossEvent.setName(Component.translatable("event.simplemobsiege.siege.failed"));
-        bossEvent.setColor(BossEvent.BossBarColor.RED);
+        if (siegeGroup != null) {
+            siegeGroup.setFailed();
+            // All members fail?
+            // If durability shared, all will fail eventually.
+        }
         setChanged();
         // Maybe explode or something?
     }
@@ -397,8 +642,9 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         if (state == State.VICTORY) return; // Prevent multiple triggers
         state = State.VICTORY;
         SimpleMobSiege.LOGGER.info("Siege won!");
-        bossEvent.setName(Component.translatable("event.simplemobsiege.siege.victory"));
-        bossEvent.setColor(BossEvent.BossBarColor.GREEN);
+        if (siegeGroup != null) {
+            siegeGroup.setVictory();
+        }
         setChanged();
         
         // Output Redstone Pulse (20 ticks = 1 second)
