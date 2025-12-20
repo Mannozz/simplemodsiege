@@ -38,6 +38,7 @@ public class SimpleMobSiege {
         @net.neoforged.bus.api.SubscribeEvent
         public static void registerScreens(net.neoforged.neoforge.client.event.RegisterMenuScreensEvent event) {
              event.register(net.manno.simplemobsiege.registry.ModMenuTypes.SIEGE_MENU.get(), net.manno.simplemobsiege.client.gui.SiegeScreen::new);
+             event.register(net.manno.simplemobsiege.registry.ModMenuTypes.MOB_CARD_GROUP_MENU.get(), net.manno.simplemobsiege.client.gui.MobCardItemGroupScreen::new);
         }
     }
 }

@@ -3,6 +3,7 @@ package net.manno.simplemobsiege.registry;
 import net.manno.simplemobsiege.SimpleMobSiege;
 import net.manno.simplemobsiege.item.ChallengeCardItem;
 import net.manno.simplemobsiege.item.MobCardItem;
+import net.manno.simplemobsiege.item.MobCardItemGroupItem;
 import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -19,6 +20,9 @@ public class ModItems {
             
     public static final DeferredItem<Item> BLANK_CARD = ITEMS.register("blank_card",
             () -> new Item(new Item.Properties().stacksTo(64)));
+
+    public static final DeferredItem<Item> MOB_CARD_GROUP = ITEMS.register("mob_card_group",
+            () -> new MobCardItemGroupItem(new Item.Properties().stacksTo(1)));
 
     public static void register(IEventBus eventBus) {
         ITEMS.register(eventBus);

@@ -22,6 +22,7 @@ public class ModCreativeTabs {
                         output.accept(ModBlocks.SPAWN_POINT_BLOCK_ITEM.get());
                         output.accept(ModItems.BLANK_CARD.get());
                         output.accept(ModItems.MOB_CARD.get());
+                        output.accept(ModItems.MOB_CARD_GROUP.get());
                         output.accept(ModItems.CHALLENGE_CARD.get());
                     }).build());
 

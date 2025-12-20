@@ -3,6 +3,7 @@
   "block.simplemobsiege.siege_block": "Siege Block",
   "block.simplemobsiege.spawn_point": "Spawn Point",
   "item.simplemobsiege.mob_card": "Mob Card",
+  "item.simplemobsiege.mob_card_group": "Mob Card Group",
   "item.simplemobsiege.challenge_card": "Challenge Card",
   "item.simplemobsiege.blank_card": "Blank Card",
   "tooltip.simplemobsiege.mob_card": "Mob: %s",
