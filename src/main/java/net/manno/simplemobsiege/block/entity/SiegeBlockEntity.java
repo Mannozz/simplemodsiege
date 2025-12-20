@@ -39,6 +39,8 @@ import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.CustomData;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -533,7 +535,22 @@ public class SiegeBlockEntity extends BlockEntity implements MenuProvider {
         List<ItemStack> waveCards = new ArrayList<>();
         for(int i=0; i<9; i++) {
             ItemStack s = itemHandler.getStackInSlot(i);
-            if(!s.isEmpty() && s.has(ModDataComponents.MOB_TYPE)) {
+            if (s.isEmpty()) continue;
+
+            if (s.getItem() == ModItems.MOB_CARD_GROUP.get()) {
+                CustomData customData = s.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+                if (customData.contains("Inventory")) {
+                    CompoundTag invTag = customData.copyTag().getCompound("Inventory");
+                    ItemStackHandler tempHandler = new ItemStackHandler(27);
+                    tempHandler.deserializeNBT(level.registryAccess(), invTag);
+                    for(int j=0; j<27; j++) {
+                        ItemStack card = tempHandler.getStackInSlot(j);
+                        if (!card.isEmpty() && card.has(ModDataComponents.MOB_TYPE)) {
+                            waveCards.add(card.copy());
+                        }
+                    }
+                }
+            } else if (s.has(ModDataComponents.MOB_TYPE)) {
                 waveCards.add(s);
             }
         }
